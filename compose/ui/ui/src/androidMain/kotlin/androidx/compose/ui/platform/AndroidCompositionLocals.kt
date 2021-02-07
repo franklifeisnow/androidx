@@ -19,24 +19,20 @@ package androidx.compose.ui.platform
 import android.content.Context
 import android.content.res.Configuration
 import android.view.View
-import androidx.compose.animation.core.InternalAnimationApi
-import androidx.compose.animation.core.rootAnimationClockFactory
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.ExperimentalComposeApi
-import androidx.compose.runtime.Providers
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.neverEqualPolicy
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.LocalSaveableStateRegistry
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.lifecycle.LifecycleOwner
-import androidx.lifecycle.ViewModelStoreOwner
 import androidx.savedstate.SavedStateRegistryOwner
 
 /**
@@ -68,30 +64,14 @@ val LocalSavedStateRegistryOwner = staticCompositionLocalOf<SavedStateRegistryOw
  */
 val LocalView = staticCompositionLocalOf<View>()
 
-/**
- * The CompositionLocal containing the current [ViewModelStoreOwner].
- */
-@Suppress("DeprecatedCallableAddReplaceWith")
-@Deprecated(
-    "It was moved to androidx.lifecycle.viewmodel.compose package. You should add a " +
-        "dependency on androidx.lifecycle:lifecycle-viewmodel.compose:1.0.0-alpha01 in order to " +
-        "use it"
-)
-val LocalViewModelStoreOwner = staticCompositionLocalOf<ViewModelStoreOwner>()
-
 @Composable
-@OptIn(ExperimentalComposeUiApi::class, InternalAnimationApi::class)
+@OptIn(ExperimentalComposeUiApi::class)
 internal fun ProvideAndroidCompositionLocals(
     owner: AndroidComposeView,
     content: @Composable () -> Unit
 ) {
     val view = owner
     val context = view.context
-    val scope = rememberCoroutineScope()
-    val rootAnimationClock = remember(scope) {
-        rootAnimationClockFactory(scope)
-    }
-
     var configuration by remember {
         mutableStateOf(
             context.resources.configuration,
@@ -116,19 +96,16 @@ internal fun ProvideAndroidCompositionLocals(
         }
     }
 
-    Providers(
+    CompositionLocalProvider(
         LocalConfiguration provides configuration,
         LocalContext provides context,
         LocalLifecycleOwner provides viewTreeOwners.lifecycleOwner,
         LocalSavedStateRegistryOwner provides viewTreeOwners.savedStateRegistryOwner,
         LocalSaveableStateRegistry provides saveableStateRegistry,
-        LocalView provides owner.view,
-        @Suppress("DEPRECATION")
-        LocalViewModelStoreOwner provides viewTreeOwners.viewModelStoreOwner
+        LocalView provides owner.view
     ) {
         ProvideCommonCompositionLocals(
             owner = owner,
-            animationClock = rootAnimationClock,
             uriHandler = uriHandler,
             content = content
         )

@@ -35,6 +35,7 @@ import androidx.compose.runtime.mock.SelectContact
 import androidx.compose.runtime.mock.compositionTest
 import androidx.compose.runtime.mock.skip
 import androidx.compose.runtime.mock.Text
+import androidx.compose.runtime.mock.View
 import androidx.compose.runtime.mock.expectChanges
 import androidx.compose.runtime.mock.expectNoChanges
 import androidx.compose.runtime.mock.validate
@@ -44,7 +45,6 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.runBlockingTest
-import kotlin.test.AfterTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNotEquals
@@ -57,12 +57,6 @@ fun Container(content: @Composable () -> Unit) = content()
 @OptIn(ExperimentalComposeApi::class, InternalComposeApi::class)
 @Suppress("unused")
 class CompositionTests {
-
-    @AfterTest
-    fun teardown() {
-        clearRoots()
-    }
-
     @Test
     fun simple() = compositionTest {
         compose {
@@ -2811,7 +2805,7 @@ class CompositionTests {
 
 @OptIn(InternalComposeApi::class, ExperimentalComposeApi::class)
 @Composable
-private fun TestSubcomposition(
+internal fun TestSubcomposition(
     content: @Composable () -> Unit
 ) {
     val parentRef = rememberCompositionContext()
@@ -2824,6 +2818,32 @@ private fun TestSubcomposition(
         subcomposition.applyChanges()
         onDispose {
             subcomposition.dispose()
+        }
+    }
+}
+
+class Ref<T : Any> {
+    lateinit var value: T
+}
+
+@Composable fun NarrowInvalidateForReference(ref: Ref<CompositionContext>) {
+    ref.value = rememberCompositionContext()
+}
+
+@Composable
+fun testDeferredSubcomposition(block: @Composable () -> Unit): () -> Unit {
+    val container = remember { View() }
+    val ref = Ref<CompositionContext>()
+    NarrowInvalidateForReference(ref = ref)
+    return {
+        @OptIn(ExperimentalComposeApi::class)
+        Composition(
+            ViewApplier(container),
+            ref.value
+        ).apply {
+            setContent {
+                block()
+            }
         }
     }
 }
